@@ -1,0 +1,79 @@
+replicaCount: 2
+
+wordpressUsername: admin
+wordpressPassword: admin123
+wordpressEmail: tuemail@gmail.com
+
+tolerations:
+  - key: "node.kubernetes.io/not-ready"
+    operator: "Exists"
+    effect: "NoExecute"
+    tolerationSeconds: 30
+  - key: "node.kubernetes.io/unreachable"
+    operator: "Exists"
+    effect: "NoExecute"
+    tolerationSeconds: 30
+
+service:
+  type: ClusterIP
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  hostname: wordpress.local
+  annotations:
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+
+persistence:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - node2
+                - node3
+
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: wordpress
+          topologyKey: kubernetes.io/hostname
+
+mariadb:
+  auth:
+    rootPassword: root123
+    database: bitnami_wordpress
+    username: bn_wordpress
+    password: wp123
+
+  primary:
+    nodeSelector:
+      kubernetes.io/hostname: node1
+
+    persistence:
+      enabled: true
+      storageClass: longhorn
+      accessModes:
+        - ReadWriteOnce
+      size: 8Gi
+
+wordpressExtraConfigContent: |
+  define('WP_HOME', 'http://wordpress.local');
+  define('WP_SITEURL', 'http://wordpress.local');
+  define('FORCE_SSL_ADMIN', false);
